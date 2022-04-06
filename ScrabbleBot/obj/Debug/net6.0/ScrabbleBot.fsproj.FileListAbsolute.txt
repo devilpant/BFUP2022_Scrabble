@@ -1,8 +1,0 @@
-C:\Users\peter\OneDrive\Dokumenter\4_UNI\FUPRO\ScrabbleProject\ScrabbleTemplate\ScrabbleTemplate\ScrabbleBot\obj\Debug\net6.0\ScrabbleBot.fsproj.AssemblyReference.cache
-C:\Users\peter\OneDrive\Dokumenter\4_UNI\FUPRO\ScrabbleProject\ScrabbleTemplate\ScrabbleTemplate\ScrabbleBot\obj\Debug\net6.0\ScrabbleBot.AssemblyInfoInputs.cache
-C:\Users\peter\OneDrive\Dokumenter\4_UNI\FUPRO\ScrabbleProject\ScrabbleTemplate\ScrabbleTemplate\ScrabbleBot\obj\Debug\net6.0\ScrabbleBot.AssemblyInfo.fs
-C:\Users\peter\OneDrive\Dokumenter\4_UNI\FUPRO\ScrabbleProject\ScrabbleTemplate\ScrabbleTemplate\ScrabbleBot\bin\Debug\net6.0\YourIdGoesHere.deps.json
-C:\Users\peter\OneDrive\Dokumenter\4_UNI\FUPRO\ScrabbleProject\ScrabbleTemplate\ScrabbleTemplate\ScrabbleBot\bin\Debug\net6.0\YourIdGoesHere.dll
-C:\Users\peter\OneDrive\Dokumenter\4_UNI\FUPRO\ScrabbleProject\ScrabbleTemplate\ScrabbleTemplate\ScrabbleBot\bin\Debug\net6.0\YourIdGoesHere.pdb
-C:\Users\peter\OneDrive\Dokumenter\4_UNI\FUPRO\ScrabbleProject\ScrabbleTemplate\ScrabbleTemplate\ScrabbleBot\obj\Debug\net6.0\YourIdGoesHere.dll
-C:\Users\peter\OneDrive\Dokumenter\4_UNI\FUPRO\ScrabbleProject\ScrabbleTemplate\ScrabbleTemplate\ScrabbleBot\obj\Debug\net6.0\YourIdGoesHere.pdb
