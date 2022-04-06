@@ -1,4 +1,4 @@
-module Dictionary
+module internal Dictionary
     
     type Dict = 
         | D of List<string>
