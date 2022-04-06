@@ -1,6 +1,4 @@
-﻿// Learn more about F# at http://fsharp.org
-
-open System
+﻿open System
 
 let time f =
     let start = System.DateTime.Now
@@ -47,7 +45,7 @@ let main argv =
     let port       = 13001
 
     let dictAPI =
-        // Uncomment if you have implemented a dictionary. last element None if you have not implemented a GADDAG
+        // TODO: Uncomment if you have implemented a dictionary. last element None if you have not implemented a GADDAG
         // Some (Dictionary.empty, Dictionary.insert, Dictionary.step, Some Dictionary.reverse) 
         None
 
@@ -63,7 +61,7 @@ let main argv =
     //    List.iter (fun str -> ScrabbleUtil.DebugPrint.debugPrint (sprintf "%s\n" str)) incorrectWords
         
     // Uncomment this line to call your client
-    // let players    = [("Your name here", dictionary, YourClientName.Scrabble.startGame)]
+    // let players    = [("Huey Lewis", dictionary, Huey.Scrabble.startGame)] TODO: Uncomment this and comment below
     let players = spawnMultiples "OxyphenButazone" dictionary Oxyphenbutazone.Scrabble.startGame 2
         
 
