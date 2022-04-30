@@ -35,7 +35,6 @@
                 | S g -> g s'
               | Failure err     -> Failure err)
 
-
     let ret (v : 'a) : SM<'a> = S (fun s -> Success (v, s))
     let fail err     : SM<'a> = S (fun s -> Failure err)
 
@@ -75,5 +74,54 @@
               | Some v -> Success (v, s)
               | None   -> Failure (VarNotFound x))
 
-    let declare (var : string) : SM<unit> = failwith "Not implemented"   
-    let update (var : string) (value : int) : SM<unit> = failwith "Not implemented"      
+    let declare (var : string) : SM<unit> = 
+        
+        let add =
+            function
+            | [] -> []
+            | m :: ms -> (Map.add var 0 m) :: ms
+
+        let aux =
+            function
+            | [] -> None
+            | m :: ms ->
+                match Map.tryFind var m with
+                | Some _ -> Some VarExists
+                | None -> None
+
+        let aux2 (set : Set<string>) (list : list<Map<string, int>>) = 
+            match Set.contains var set with
+            | true -> Some ReservedName 
+            | false -> aux list
+      
+        S (fun s -> 
+            match aux2 (s.reserved) (s.vars) with
+            | Some v -> Failure (v var)
+            | None -> Success ((), {s with vars = add s.vars}))
+    
+    let update (var : string) (value : int) : SM<unit> = 
+        
+        let updateMap m = m |> Map.add var value
+
+        let rec aux =
+            function
+            | [] -> None
+            | m :: ms ->
+                match Map.tryFind var m with
+                | Some _ -> Some m
+                | None -> aux ms
+        
+        let order oldMap newMap mapList = 
+            let rec replaceC oldMap newMap mapList c = 
+                match mapList with
+                | [] -> c []
+                | x :: xs when x = oldMap -> c (newMap :: xs)
+                | x :: xs -> replaceC oldMap newMap xs (fun r -> x :: r)
+            replaceC oldMap newMap mapList id
+
+        S (fun s ->
+            match aux s.vars with 
+            | Some m -> 
+                let m' = updateMap m
+                Success ((), {s with vars = (order m m' s.vars)})
+            | None -> Failure (VarNotFound var))     
