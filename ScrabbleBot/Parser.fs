@@ -66,10 +66,12 @@ let TermParse, tref = createParserForwardedToRef<aExp> ()
 let ProdParse, pref = createParserForwardedToRef<aExp> ()
 let AtomParse, aref = createParserForwardedToRef<aExp> ()
 let CharParse, cref = createParserForwardedToRef<cExp> ()
+let BoolParse, bref = createParserForwardedToRef<bExp> ()
+
 
 let AexpParse = TermParse
 let CexpParse = CharParse
-let BexpParse = pstring "not implemented"
+let BexpParse = BoolParse
 let stmParse = pstring "not implemented"
 
 let AddParse =
@@ -153,6 +155,12 @@ do
                 ToLowerParse
                 IntToCharParse
                 CParse ]
+    
+do
+    bref
+    := choice [ 
+        
+    ]
 
 
 

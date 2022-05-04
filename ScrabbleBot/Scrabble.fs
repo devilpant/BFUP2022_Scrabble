@@ -45,10 +45,12 @@ module State =
         board         : Parser.board
         dict          : ScrabbleUtil.Dictionary.Dict
         playerNumber  : uint32
+        playerAmount  : uint32
+        playerTurn    : uint32
         hand          : MultiSet.MultiSet<uint32>
     }
 
-    let mkState b d pn h = {board = b; dict = d;  playerNumber = pn; hand = h }
+    let mkState b d pn h pa pt = {board = b; dict = d;  playerNumber = pn; hand = h; playerAmount = pa; playerTurn = pt;}
 
     let board st         = st.board
     let dict st          = st.dict
@@ -58,6 +60,11 @@ module State =
 module Scrabble =
     open System.Threading
 
+    let findMove = failwith "Not implemented"
+    //Convert Id of tile into a tile
+    //Convert tile to letter and vice versa for letter placement on board
+    //Handle coordinates (x,y) stuff like horizontal and vertical direction of the word. Note that (0,0) is center. Therefore (-1, 0) is hor left, and (0, -1) is ver up.
+    
     let playGame cstream pieces (st : State.state) =
 
         let rec aux (st : State.state) =
@@ -66,7 +73,7 @@ module Scrabble =
             // remove the force print when you move on from manual input (or when you have learnt the format)
             forcePrint "Input move (format '(<x-coordinate> <y-coordinate> <piece id><character><point-value> )*', note the absence of space between the last inputs)\n\n"
             let input =  System.Console.ReadLine()
-            let move = RegEx.parseMove input
+            let move = RegEx.parseMove input //move = findMove move
 
             debugPrint (sprintf "Player %d -> Server:\n%A\n" (State.playerNumber st) move) // keep the debug lines. They are useful.
             send cstream (SMPlay move)
@@ -118,5 +125,5 @@ module Scrabble =
                   
         let handSet = List.fold (fun acc (x, k) -> MultiSet.add x k acc) MultiSet.empty hand
 
-        fun () -> playGame cstream tiles (State.mkState board dict playerNumber handSet)
+        fun () -> playGame cstream tiles (State.mkState board dict playerNumber handSet numPlayers playerTurn )
         
