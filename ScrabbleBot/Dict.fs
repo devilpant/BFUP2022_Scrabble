@@ -1,12 +1,13 @@
-//Alle typer skal være internal
 module internal MyDictionary
-open System.Collections.Generic  
+  
+    open System.Collections.Generic  
+
     type Dict = 
         | Leaf of bool
         | Node of bool * Dictionary<char, Dict>
     
-    
     let empty () = Leaf false
+    
     let rec insert (s:string)  =
         function
         | Leaf _ when s.Length = 0 -> Leaf true
@@ -23,10 +24,11 @@ open System.Collections.Generic
             d.Add(s.[0], insert substring (empty()))
             Node(b, d)
           | (true, node) ->
-            //d.Add(s.[0], insert substring node)
             d.[s.[0]] <- insert substring node
             Node(b, d)
-          
+        | Leaf(_) -> failwith "Not Implemented in Dictionary Insert"
+        | Node(_, _) -> failwith "Not Implemented in Dictionary Insert"
+      
     let step (c: char) (dict) =
         match dict with
         | Leaf _ -> None
@@ -42,8 +44,5 @@ open System.Collections.Generic
         match (step s.[0] dict) with
         | None -> false
         | Some (b, subdict) when s.Length = 1  -> b
-        | Some (b, subdict) ->
-            lookup s.[1..] subdict
-            
-// Senere, kald foldback(step result) for at kunne gå videre ned af subtrees
-         
+        | Some (b, subdict) -> lookup s.[1..] subdict
+

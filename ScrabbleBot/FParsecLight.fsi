@@ -4,7 +4,7 @@
 
     type ParserResult<'a> = ParserResult<'a, unit>
 
-    module TextParser = 
+    module TextParser =
 
         type Parser<'a> = Parser<'a, unit>
 

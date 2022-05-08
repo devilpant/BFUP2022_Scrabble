@@ -2,211 +2,180 @@
 
 module internal Eval
 
-open StateMonad
+    open StateMonad
 
-let hello =
-    [ ('H', 4)
-      ('E', 1)
-      ('L', 1)
-      ('L', 1)
-      ('O', 1) ]
+    let hello = [('H', 4); ('E', 1); ('L', 1); ('L', 1); ('O', 1)]
+    let state = mkState [("x", 5); ("y", 42)] hello ["_pos_"; "_result_"]
+    let emptyState = mkState [] [] []
+        
+    let add a b = 
+            a >>= fun x ->
+            b >>= fun y ->
+            ret (x + y)
 
-let state = mkState [ ("x", 5); ("y", 42) ] hello [ "_pos_"; "_result_" ]
-let emptyState = mkState [] [] []
+    let div a b = 
+            a >>= fun x ->
+            b >>= fun y ->
+            if y <> 0 then ret (x / y) else fail (DivisionByZero)   
 
-let isVowel c =
-    let upperC = System.Char.ToUpper(c)
+    let isVowel = 
+            function
+            | 'A' | 'E' | 'I' | 'O' | 'U' | 'Y' | 'a' | 'e' | 'i' | 'o' | 'u' | 'y' -> true
+            | _ -> false
 
-    (upperC = 'A'
-     || upperC = 'E'
-     || upperC = 'O'
-     || upperC = 'I'
-     || upperC = 'U')
+    type aExp =
+        | N of int
+        | V of string
+        | WL
+        | PV of aExp
+        | Add of aExp * aExp
+        | Sub of aExp * aExp
+        | Mul of aExp * aExp
+        | Div of aExp * aExp
+        | Mod of aExp * aExp
+        | CharToInt of cExp
 
+    and cExp =
+        | C of char (* Character value *)
+        | CV of aExp (* Character lookup at word index *)
+        | ToUpper of cExp
+        | ToLower of cExp
+        | IntToChar of aExp
 
-let add a b =
-    a >>= fun x -> b >>= fun y -> ret (x + y)
+    type bExp =
+        | TT (* true *)
+        | FF (* false *)
 
-let sub a b =
-    a >>= fun x -> b >>= fun y -> ret (x - y)
+        | AEq of aExp * aExp (* numeric equality *)
+        | ALt of aExp * aExp (* numeric less than *)
 
-let mul a b =
-    a >>= fun x -> b >>= fun y -> ret (x * y)
+        | Not of bExp (* boolean not *)
+        | Conj of bExp * bExp (* boolean conjunction *)
 
-let modu a b =
-    a
-    >>= fun x ->
-            b
-            >>= fun y ->
-                    if y <> 0 then
-                        ret (x % y)
-                    else
-                        fail DivisionByZero
+        | IsVowel of cExp (* check for vowel *)
+        | IsLetter of cExp (* check for letter *)
+        | IsDigit of cExp (* check for digit *)
 
-let div a b =
-    a
-    >>= fun x ->
-            b
-            >>= fun y ->
-                    if y <> 0 then
-                        ret (x / y)
-                    else
-                        fail DivisionByZero
+    let (.+.) a b = Add (a, b)
+    let (.-.) a b = Sub (a, b)
+    let (.*.) a b = Mul (a, b)
+    let (./.) a b = Div (a, b)
+    let (.%.) a b = Mod (a, b)
 
-type aExp =
-    | N of int
-    | V of string
-    | WL
-    | PV of aExp
-    | Add of aExp * aExp
-    | Sub of aExp * aExp
-    | Mul of aExp * aExp
-    | Div of aExp * aExp
-    | Mod of aExp * aExp
-    | CharToInt of cExp
+    let (~~) b = Not b
+    let (.&&.) b1 b2 = Conj (b1, b2)
+    let (.||.) b1 b2 = ~~(~~b1 .&&. ~~b2)       (* boolean disjunction *)
+    let (.->.) b1 b2 = (~~b1) .||. b2           (* boolean implication *) 
+        
+    let (.=.) a b = AEq (a, b)   
+    let (.<.) a b = ALt (a, b)   
+    let (.<>.) a b = ~~(a .=. b)
+    let (.<=.) a b = a .<. b .||. ~~(a .<>. b)
+    let (.>=.) a b = ~~(a .<. b)                (* numeric greater than or equal to *)
+    let (.>.) a b = ~~(a .=. b) .&&. (a .>=. b) (* numeric greater than *)    
 
-and cExp =
-    | C of char (* Character value *)
-    | CV of aExp (* Character lookup at word index *)
-    | ToUpper of cExp
-    | ToLower of cExp
-    | IntToChar of aExp
+    let rec arithEval a : SM<int> = 
+        match a with
+        | N x -> ret x
+        | V x -> lookup x
+        | WL -> wordLength
+        | PV x -> (arithEval x) >>= fun y -> pointValue y
+        | Add (x, y) -> add (arithEval x) (arithEval y)
+        | Sub (x, y) -> (arithEval x) >>= fun m ->
+                        (arithEval y) >>= fun n ->
+                        ret (m - n)
+        | Mul (x, y) -> (arithEval x) >>= fun m ->
+                        (arithEval y) >>= fun n ->
+                        ret (m * n)
+        | Div (x, y) -> div (arithEval x) (arithEval y)
+        | Mod (x, y) -> (arithEval x) >>= fun m ->
+                        (arithEval y) >>= fun n ->
+                        if n <> 0 then ret (m % n) else fail (DivisionByZero) 
+        | CharToInt x -> charEval x >>= fun y -> ret (int y)  
 
-type bExp =
-    | TT (* true *)
-    | FF (* false *)
+    and charEval c : SM<char> = 
+        match c with
+        | C x -> ret x
+        | CV x -> (arithEval x) >>= fun y -> characterValue y
+        | ToUpper x -> (charEval x) >>= fun y -> ret (System.Char.ToUpper y)
+        | ToLower x -> (charEval x) >>= fun y -> ret (System.Char.ToLower y)
+        | IntToChar x -> (arithEval x) >>= fun y -> ret (char y)
 
-    | AEq of aExp * aExp (* numeric equality *)
-    | ALt of aExp * aExp (* numeric less than *)
+    let rec boolEval b : SM<bool> = 
+        match b with
+        | TT -> ret true              
+        | FF -> ret false          
+        | AEq (x, y) -> (arithEval x) >>= fun m ->
+                        (arithEval y) >>= fun n ->
+                        ret (m = n)
+        | ALt (x, y) -> (arithEval x) >>= fun m ->
+                        (arithEval y) >>= fun n ->
+                        ret (m < n)
+        | Not x -> (boolEval x) >>= fun y -> ret (not y)
+        | Conj (x, y) -> (boolEval x) >>= fun m ->
+                        (boolEval y) >>= fun n ->
+                        ret (m && n)
+        | IsVowel x -> (charEval x) >>= fun y -> ret (isVowel y)
+        | IsLetter x -> (charEval x) >>= fun y -> ret (System.Char.IsLetter y)
+        | IsDigit x -> (charEval x) >>= fun y -> ret (System.Char.IsDigit y)
 
-    | Not of bExp (* boolean not *)
-    | Conj of bExp * bExp (* boolean conjunction *)
+    type stm = (* statements *)
+        | Declare of string (* variable declaration *)
+        | Ass of string * aExp (* variable assignment *)
+        | Skip (* nop *)
+        | Seq of stm * stm (* sequential composition *)
+        | ITE of bExp * stm * stm (* if-then-else statement *)
+        | While of bExp * stm (* while statement *)
 
-    | IsVowel of cExp (* check for vowel *)
-    | IsLetter of cExp (* check for letter *)
-    | IsDigit of cExp (* check for digit *)
+    let rec stmntEval stmnt : SM<unit> = failwith "Not implemented"
 
-let (.+.) a b = Add(a, b)
-let (.-.) a b = Sub(a, b)
-let (.*.) a b = Mul(a, b)
-let (./.) a b = Div(a, b)
-let (.%.) a b = Mod(a, b)
-
-let (~~) b = Not b
-let (.&&.) b1 b2 = Conj(b1, b2)
-
-let (.||.) b1 b2 =
-    ~~(~~b1 .&&. ~~b2) (* boolean disjunction *)
-
-let (.->.) b1 b2 =
-    (~~b1) .||. b2 (* boolean implication *)
-
-let (.=.) a b = AEq(a, b)
-let (.<.) a b = ALt(a, b)
-let (.<>.) a b = ~~(a .=. b)
-let (.<=.) a b = a .<. b .||. ~~(a .<>. b)
-
-let (.>=.) a b =
-    ~~(a .<. b) (* numeric greater than or equal to *)
-
-let (.>.) a b =
-    ~~(a .=. b)
-    .&&. (a .>=. b) (* numeric greater than *)
-
-let rec arithEval a : SM<int> =
-    match a with
-    | N n -> ret n
-    | V v -> lookup v
-    | WL -> wordLength
-    | PV x -> arithEval x >>= pointValue
-    | Add (x, y) -> add (arithEval x) (arithEval y)
-    | Sub (x, y) -> sub (arithEval x) (arithEval y)
-    | Mul (x, y) -> mul (arithEval x) (arithEval y)
-    | Div (x, y) -> div (arithEval x) (arithEval y)
-    | Mod (x, y) -> modu (arithEval x) (arithEval y)
-    | CharToInt c -> charEval c >>= (fun c -> ret (int c))
-
-and charEval c : SM<char> =
-    match c with
-    | C char -> ret char
-    | ToUpper x ->
-        charEval x
-        >>= (fun c -> ret (System.Char.ToUpper c))
-    | ToLower x ->
-        charEval x
-        >>= (fun c -> ret (System.Char.ToLower c))
-    | CV cv -> arithEval cv >>= characterValue
-    | IntToChar n -> arithEval n >>= (fun n -> ret (char n))
-
-let rec boolEval b : SM<bool> =
-    match b with
-    | TT -> ret true
-    | FF -> ret false
-    | AEq (a, b) ->
-        (arithEval a)
-        >>= fun x -> (arithEval b) >>= fun y -> ret (x = y)
-    | ALt (a, b) ->
-        (arithEval a)
-        >>= fun x -> (arithEval b) >>= fun y -> ret (x < y)
-    | Not x -> boolEval x >>= (fun x -> ret (not x))
-    | Conj (a, b) ->
-        (boolEval a)
-        >>= fun x -> (boolEval b) >>= fun y -> ret (x && y)
-    | IsDigit x ->
-        charEval x
-        >>= (fun c -> ret (System.Char.IsDigit c))
-    | IsLetter x ->
-        charEval x
-        >>= (fun c -> ret (System.Char.IsLetter c))
-    | IsVowel x -> charEval x >>= (fun c -> ret (isVowel c))
-
-
-
-type stm = (* statements *)
-    | Declare of string (* variable declaration *)
-    | Ass of string * aExp (* variable assignment *)
-    | Skip (* nop *)
-    | Seq of stm * stm (* sequential composition *)
-    | ITE of bExp * stm * stm (* if-then-else statement *)
-    | While of bExp * stm (* while statement *)
-
-let rec stmntEval stmnt : SM<unit> = failwith "Not implemented"
+    (*
+    let rec stmntEval stmnt : SM<unit> = 
+        match b with
+        | Declare (var) ->  declare var
+        | Ass (x, a) -> 
+        | Skip -> s
+        | Seq (stm1, stm2) ->
+        | ITE (b, stm1, stm2) -> if(boolEval(b)) then stm1 else stm2
+        | While (b, stm1) ->
+    *)
 
 (* Part 3 (Optional) *)
 
-type StateBuilder() =
+    type StateBuilder() =
 
-    member this.Bind(f, x) = f >>= x
-    member this.Return(x) = ret x
-    member this.ReturnFrom(x) = x
-    member this.Delay(f) = f ()
-    member this.Combine(a, b) = a >>= (fun _ -> b)
+        member this.Bind(f, x) = f >>= x
+        member this.Return(x) = ret x
+        member this.ReturnFrom(x) = x
+        member this.Delay(f) = f ()
+        member this.Combine(a, b) = a >>= (fun _ -> b)
 
-let prog = new StateBuilder()
+    let prog = new StateBuilder()
 
-let arithEval2 a = failwith "Not implemented"
-let charEval2 c = failwith "Not implemented"
-let rec boolEval2 b = failwith "Not implemented"
+    let arithEval2 a = failwith "Not implemented"
+    let charEval2 c = failwith "Not implemented"
+    let rec boolEval2 b = failwith "Not implemented"
 
-let stmntEval2 stm = failwith "Not implemented"
+    let stmntEval2 stm = failwith "Not implemented"
 
 (* Part 4 *)
 
-type word = (char * int) list
-type squareFun = word -> int -> int -> Result<int, Error>
+    type word = (char * int) list
+    type squareFun = word -> int -> int -> Result<int, Error>
 
-let stmntToSquareFun stm = failwith "Not implemented"
+    let stmntToSquareFun stm = failwith "Not implemented"
 
 
-type coord = int * int
+    type coord = int * int
 
-type boardFun = coord -> Result<squareFun option, Error>
+    type boardFun = coord -> Result<squareFun option, Error>
 
-let stmntToBoardFun stm m = failwith "Not implemented"
+    let stmntToBoardFun stm m = failwith "Not implemented"
 
-type board =
-    { center: coord
-      defaultSquare: squareFun
-      squares: boardFun }
+    type board = { 
+        center: coord
+        defaultSquare: squareFun
+        squares: boardFun 
+    }
 
-let mkBoard c defaultSq boardStmnt ids = failwith "Not implemented"
+    let mkBoard c defaultSq boardStmnt ids = failwith "Not implemented"

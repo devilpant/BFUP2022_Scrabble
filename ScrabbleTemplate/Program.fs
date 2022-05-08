@@ -36,7 +36,7 @@ let main argv =
 //    let board      = ScrabbleUtil.HoleBoard.holeBoard ()
 //    let board      = ScrabbleUtil.InfiniteHoleBoard.infiniteHoleBoard ()
 
-    let words     = readLines "../../../Dictionaries/English.txt"
+    let words     = readLines "Dictionaries/English.txt"
 
     let handSize   = 7u
     let timeout    = None
@@ -49,7 +49,8 @@ let main argv =
         // Some (Dictionary.empty, Dictionary.insert, Dictionary.step, Some Dictionary.reverse) 
         None
 
-    let (dictionary, time) = time (fun () -> ScrabbleUtil.Dictionary.mkDict words dictAPI)
+    let (dictionary, time) = 
+        time (fun () -> ScrabbleUtil.Dictionary.mkDict words dictAPI)
 
     // Uncomment to test your dictionary
     // ScrabbleUtil.DebugPrint.debugPrint ("Dictionary test sucessful\n")
