@@ -1,5 +1,5 @@
 //Alle typer skal være internal
-module internal Dictionary
+module internal MyDictionary
 open System.Collections.Generic  
     type Dict = 
         | Leaf of bool
@@ -23,7 +23,8 @@ open System.Collections.Generic
             d.Add(s.[0], insert substring (empty()))
             Node(b, d)
           | (true, node) ->
-            d.Add(s.[0], insert substring node)
+            //d.Add(s.[0], insert substring node)
+            d.[s.[0]] <- insert substring node
             Node(b, d)
           
     let step (c: char) (dict) =
