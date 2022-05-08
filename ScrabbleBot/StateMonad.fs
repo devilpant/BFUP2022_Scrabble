@@ -44,21 +44,25 @@
     let push : SM<unit> = 
         S (fun s -> Success ((), {s with vars = Map.empty :: s.vars}))
 
-    let pop : SM<unit> = S (fun s -> Success ((), {s with vars = s.vars.Tail}))       
+    let pop : SM<unit> = 
+        S (fun s -> Success ((), {s with vars = List.tail s.vars})) 
 
-    let wordLength : SM<int> = S (fun s -> Success (s.word.Length, s))      
+    let wordLength : SM<int> = 
+        S (fun s -> Success ((List.length s.word), s))      
 
-    let characterValue (pos : int) : SM<char> = S (fun s ->
-        match pos with 
-        | pos when pos >= List.length s.word -> Failure(IndexOutOfBounds pos)
-        | pos when pos < 0 -> Failure(IndexOutOfBounds pos)
-        | pos ->  Success (fst(s.word.[pos]), s))    
+    let characterValue (pos : int) : SM<char> = 
+        S (fun s -> 
+            match pos with
+            | index when List.length s.word > index -> Success ((fst (List.item(index) s.word)), s)
+            | _ -> Failure (IndexOutOfBounds pos)    
+        )
 
-    let pointValue (pos : int) : SM<int> = S (fun s ->
-        match pos with 
-        | pos when pos >= List.length s.word -> Failure(IndexOutOfBounds pos)
-        | pos when pos < 0 -> Failure(IndexOutOfBounds pos)
-        | pos ->  Success (snd(s.word.[pos]), s))     
+    let pointValue (pos : int) : SM<int> = 
+        S (fun s ->
+            match pos with
+            | index when List.length s.word > index && index >= 0 -> Success (snd (s.word.[index]), s)
+            | _ -> Failure (IndexOutOfBounds pos)
+        )   
 
     let lookup (x : string) : SM<int> = 
         let rec aux =
