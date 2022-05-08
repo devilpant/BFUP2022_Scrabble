@@ -1,4 +1,4 @@
-﻿// ScrabbleUtil contains the types coord, boardProg, and SquareProg. Remove these from your file before proceeding.
+// ScrabbleUtil contains the types coord, boardProg, and SquareProg. Remove these from your file before proceeding.
 // Also note that the modulse Ass7 and ImpParser have been merged to one module called Parser.
 
 // Insert your Parser.fs file here from Assignment 7. All modules must be internal.
@@ -96,7 +96,7 @@ module internal Parser
 
     let parseSquareProg _ = failwith "not implemented"
 
-    let parseBoardProg _ = failwith "not implemented"
+    let parseBoardFun _ = failwith "not implemented"
     
     type boardFun2 = coord -> Result<square option, Error>
         

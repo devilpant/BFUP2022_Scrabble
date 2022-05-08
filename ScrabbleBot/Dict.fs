@@ -1,7 +1,7 @@
-module internal Dictionary
-
+module internal MyDictionary
+  
     open System.Collections.Generic  
-    
+
     type Dict = 
         | Leaf of bool
         | Node of bool * Dictionary<char, Dict>
@@ -24,11 +24,11 @@ module internal Dictionary
             d.Add(s.[0], insert substring (empty()))
             Node(b, d)
           | (true, node) ->
-            d.Add(s.[0], insert substring node)
+            d.[s.[0]] <- insert substring node
             Node(b, d)
         | Leaf(_) -> failwith "Not Implemented in Dictionary Insert"
         | Node(_, _) -> failwith "Not Implemented in Dictionary Insert"
-          
+      
     let step (c: char) (dict) =
         match dict with
         | Leaf _ -> None
@@ -44,5 +44,5 @@ module internal Dictionary
         match (step s.[0] dict) with
         | None -> false
         | Some (b, subdict) when s.Length = 1  -> b
-        | Some (b, subdict) ->
-            lookup s.[1..] subdict
+        | Some (b, subdict) -> lookup s.[1..] subdict
+
