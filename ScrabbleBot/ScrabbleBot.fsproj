@@ -28,9 +28,16 @@ Group name: &lt;Huey Lewis and the News&gt;</Description>
     <Compile Include="Scrabble.fsi" />
     <Compile Include="Scrabble.fs" />
   </ItemGroup>
+  
   <ItemGroup>
     <PackageReference Include="FParsec" Version="1.1.1" />
-    <PackageReference Include="ScrabbleUtil" Version="1.0.12" />
     <PackageReference Update="FSharp.Core" Version="6.0.3" />
   </ItemGroup>
+
+  <ItemGroup>
+    <Reference Include="ScrabbleUtil, Version=1.0.12.0, Culture=neutral, PublicKeyToken=null">
+      <HintPath>..\dlls\ScrabbleUtil.dll</HintPath>
+    </Reference>
+  </ItemGroup>
+
 </Project>

@@ -1,11 +1,15 @@
 ﻿namespace Huey
 
+open System
+open Eval
+open Parser
 open ScrabbleUtil
 open ScrabbleUtil.ServerCommunication
 
 open System.IO
 
 open ScrabbleUtil.DebugPrint
+open StateMonad
 
 // The RegEx module is only used to parse human input. It is not used for the final product.
 
@@ -29,7 +33,7 @@ module RegEx =
                 | _ -> failwith "Failed (should never happen)") |>
         Seq.toList
 
- module Print =
+module Print =
 
     let printHand pieces hand =
         hand |>
@@ -45,10 +49,12 @@ module State =
         board         : Parser.board
         dict          : ScrabbleUtil.Dictionary.Dict
         playerNumber  : uint32
+        playerAmount  : uint32
+        playerTurn    : uint32
         hand          : MultiSet.MultiSet<uint32>
     }
 
-    let mkState b d pn h = {board = b; dict = d;  playerNumber = pn; hand = h }
+    let mkState b d pn h pa pt = {board = b; dict = d;  playerNumber = pn; hand = h; playerAmount = pa; playerTurn = pt;}
 
     let board st         = st.board
     let dict st          = st.dict
@@ -57,7 +63,41 @@ module State =
 
 module Scrabble =
     open System.Threading
-
+    //Character to point value
+    let charToPointValue (c: char) =
+        match System.Char.ToUpper(c) with 
+        | 'A' | 'E' | 'I' | 'O' | 'U' | 'L' | 'N' | 'S' | 'T' | 'R' -> 1
+        | 'D' | 'G' -> 2
+        | 'B' | 'C' | 'M' | 'P'  -> 3
+        | 'F' | 'H' | 'V' | 'W' | 'Y' -> 4
+        | 'K'-> 5
+        | 'J' | 'X' -> 8
+        | 'Q' | 'Z' -> 10
+        | _ -> 0
+        
+    //Character to tile ID
+    let charToTileId (c: char) = uint32(Char.ToUpper(c)) - 64u
+    
+    //Tile ID to Character
+    let tileIdToChar (tileId: uint32) =  Convert.ToChar(tileId + 64u)
+    
+    
+    
+    
+    let testHand =
+         MultiSet.empty
+         |> MultiSet.add (charToTileId 'a') 2u
+         |> MultiSet.add (charToTileId 's') 1u
+         
+         
+    // MultiSet.fold f acc testHand -> 
+         
+    //let rec findMove = 
+        
+       
+    // Handle coordinates (x,y) stuff like horizontal and vertical direction of the word. Note that (0,0) is center.
+    // Therefore (-1, 0) is hor left, and (0, -1) is ver up. (0,1) ver down. (1,0) ver right
+    
     let playGame cstream pieces (st : State.state) =
 
         let rec aux (st : State.state) =
@@ -66,7 +106,7 @@ module Scrabble =
             // remove the force print when you move on from manual input (or when you have learnt the format)
             forcePrint "Input move (format '(<x-coordinate> <y-coordinate> <piece id><character><point-value> )*', note the absence of space between the last inputs)\n\n"
             let input =  System.Console.ReadLine()
-            let move = RegEx.parseMove input
+            let move = failwith "notImplemented" //move = findMove move
 
             debugPrint (sprintf "Player %d -> Server:\n%A\n" (State.playerNumber st) move) // keep the debug lines. They are useful.
             send cstream (SMPlay move)
@@ -114,9 +154,9 @@ module Scrabble =
 
         //let dict = dictf true // Uncomment if using a gaddag for your dictionary
         let dict = dictf false // Uncomment if using a trie for your dictionary
-        let board = Parser.parseBoardProg boardP
+        let board = Parser.mkBoard boardP
                   
         let handSet = List.fold (fun acc (x, k) -> MultiSet.add x k acc) MultiSet.empty hand
 
-        fun () -> playGame cstream tiles (State.mkState board dict playerNumber handSet)
+        fun () -> playGame cstream tiles (State.mkState board dict playerNumber handSet numPlayers playerTurn )
         

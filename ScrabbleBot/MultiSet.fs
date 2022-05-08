@@ -1,5 +1,5 @@
 ﻿module internal MultiSet
-
+    
     type MultiSet<'a when 'a : comparison> = 
         | M of Map<'a, uint32>
     
