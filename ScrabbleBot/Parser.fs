@@ -93,6 +93,10 @@ module internal Parser
     type word   = (char * int) list
     type squareFun = word -> int -> int -> Result<int, Error>
     type square = Map<int, squareFun>
+
+    let parseSquareProg _ = failwith "not implemented"
+
+    let parseBoardProg _ = failwith "not implemented"
     
     type boardFun2 = coord -> Result<square option, Error>
         
