@@ -110,9 +110,7 @@ module Scrabble =
          aux 0 startCoord 
     
     
-    //Function used in findWordsOnBoard to finalize words from the current coordinate of a starter character.
-    
-        
+    //concludeWord() is used in findWordsOnBoard to finalize words from the current coordinate of a starter character.
     let findWordsOnBoard (piecesInPlay: Map<coord, uint32>) =
         let rec concludeWord (wordBuilder: string) (currentCoord: coord) (direction: coord) =
             let nextPosition = nextCoord currentCoord direction
