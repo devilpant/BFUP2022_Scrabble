@@ -52,9 +52,10 @@ module State =
         playerAmount  : uint32
         playerTurn    : uint32
         hand          : MultiSet.MultiSet<uint32>
+        piecesInPlay: Map<coord, uint32> //Pair of coordinate to a tileId
     }
 
-    let mkState b d pn h pa pt = {board = b; dict = d;  playerNumber = pn; hand = h; playerAmount = pa; playerTurn = pt;}
+    let mkState b d pn h pa pt = {board = b; dict = d;  playerNumber = pn; hand = h; playerAmount = pa; playerTurn = pt; piecesInPlay = Map.empty;}
 
     let board st         = st.board
     let dict st          = st.dict
@@ -81,24 +82,76 @@ module Scrabble =
     //Tile ID to Character
     let tileIdToChar (tileId: uint32) =  Convert.ToChar(tileId + 64u)
     
+    let stringToListOfChar (string: string) = List.ofArray (string.ToCharArray())
+    
+    let moveHorizontal = (1, 0)
+    let moveVertical = (0, 1)
+    
+    //Gets the next coordinate based on direction and current position. 
+    let nextCoord (currentCoord: coord) (direction: coord) = ((fst currentCoord)+(fst direction), (snd currentCoord)+(snd direction))
+    
+    //Gets the previous coordinate based on direction and current position. 
+    let previousCoord (currentCoord: coord) (direction: coord) = ((fst currentCoord)-(fst direction), (snd currentCoord)-(snd direction))
+    
+    let isSquareOccupied (square: coord) (piecesInPlay: Map<coord, uint32>) =
+        match Map.tryFind square piecesInPlay with
+        | Some occupantId -> true
+        | None -> false
+    
+    //Converts a word into a list of SMMove, should later be called with either moveHorizontal or moveVertical. This should be done once a valid word has been found.
+    let stringToSMMove (word: string) (startCoord: coord) (direction: coord) =
+         let rec aux (currentIndex: int) (coord: coord) =
+             if currentIndex >= word.Length then [] else
+             let char = word.[currentIndex]
+             let tileId = charToTileId(char)
+             let move = (coord, (tileId, (char, charToPointValue(char))))
+             let nextPosition = nextCoord coord direction
+             move :: aux(currentIndex+1) (nextPosition)
+         aux 0 startCoord 
     
     
+    //Function used in findWordsOnBoard to finalize words from the current coordinate of a starter character.
+    
+        
+    let findWordsOnBoard (piecesInPlay: Map<coord, uint32>) =
+        let rec concludeWord (wordBuilder: string) (currentCoord: coord) (direction: coord) =
+            let nextPosition = nextCoord currentCoord direction
+            if isSquareOccupied nextPosition piecesInPlay then
+                let tileIdOnNextPosition = Map.find nextPosition piecesInPlay
+                concludeWord (wordBuilder + string (tileIdToChar tileIdOnNextPosition)) nextPosition direction
+            else wordBuilder
+                    
+        Map.fold ( fun acc coord tileId ->
+            let charAtCoord = string (tileIdToChar tileId)
+            let checkLeft = isSquareOccupied(previousCoord coord moveHorizontal) piecesInPlay
+            //Dummy value, since there is something on the left hand side of current character
+            let horizontalWord = if checkLeft then ("!", ((0,0), moveHorizontal)) else (concludeWord charAtCoord coord moveHorizontal, (coord, moveHorizontal))
+            
+            let checkUp = isSquareOccupied(previousCoord coord moveVertical) piecesInPlay
+            //Dummy value, since there is something above the current character
+            let verticalWord = if checkUp then ("!", ((0,0), moveVertical)) else (concludeWord charAtCoord coord moveVertical, (coord, moveVertical))
+        
+            //If the character at the current coordinate BEGINS a word, then prepend it to the list of words already on the board. 
+            let tempAcc = if (fst horizontalWord) = "!" then acc else horizontalWord :: acc
+            if (fst verticalWord) = "!" then tempAcc else verticalWord :: tempAcc
+            ) [] piecesInPlay
     
     let testHand =
          MultiSet.empty
          |> MultiSet.add (charToTileId 'a') 2u
          |> MultiSet.add (charToTileId 's') 1u
-         
+    
          
     // MultiSet.fold f acc testHand -> 
          
-    //let rec findMove = 
+    //let rec findMove (tiles: Map<uint32, tile>) (st:  State.state) =
+        
         
        
     // Handle coordinates (x,y) stuff like horizontal and vertical direction of the word. Note that (0,0) is center.
-    // Therefore (-1, 0) is hor left, and (0, -1) is ver up. (0,1) ver down. (1,0) ver right
+    // Therefore (-1, 0) is hor left, and (0, -1) is ver up. (0,1) ver down. (1,0) hor right
     
-    let playGame cstream pieces (st : State.state) =
+    let playGame cstream (pieces: Map<uint32, tile>) (st : State.state) =
 
         let rec aux (st : State.state) =
             Print.printHand pieces (State.hand st)
