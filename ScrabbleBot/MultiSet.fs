@@ -14,3 +14,8 @@
     let removeSingle a (M s) = if contains a (M s) then remove a 1u (M s) else M (s)
     let fold f acc (M s) = Map.fold f acc s
     let foldBack f (M s) acc = Map.foldBack f s acc
+    let toList (M s) =
+        Map.fold (fun acc k v ->
+            let array = Array.create (int v) k 
+            Array.toList array @ acc //@ concatenates the two lists :)
+        ) [] s
