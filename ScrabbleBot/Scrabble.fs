@@ -1,8 +1,6 @@
 ﻿namespace Huey
 
 open System
-open Eval
-open Parser
 open ScrabbleUtil
 open ScrabbleUtil.ServerCommunication
 
@@ -82,6 +80,9 @@ module Scrabble =
     //Tile ID to Character
     let tileIdToChar (tileId: uint32) =  Convert.ToChar(tileId + 64u)
     
+    //Tile ID to set of Tiles(char, pv)
+    let tileIdToTile (tileId: uint32) (pieces: Map<uint32, tile>) =  Map.find tileId pieces 
+    
     let stringToListOfChar (string: string) = List.ofArray (string.ToCharArray())
     
     let moveHorizontal = (1, 0)
@@ -133,6 +134,42 @@ module Scrabble =
             let tempAcc = if (fst horizontalWord) = "!" then acc else horizontalWord :: acc
             if (fst verticalWord) = "!" then tempAcc else verticalWord :: tempAcc
             ) [] piecesInPlay
+        
+        
+        
+        
+    
+        
+        //Note to self, the word 'NODE' is a SUBTREE
+    let findPlayableWords (wordOnBoard: string) (startCoord: coord) (direction: coord) (st: State.state) (pieces: Map<uint32, tile>) =
+        let subdict =
+           List.fold (fun acc char -> 
+               match Dictionary.step char acc with 
+                 | Some (_, node) -> node
+                 | None -> st.dict //st.dict is returned it has to have the same type as node, but this scenario never occurs. It will always find some sub tree because we step into a word on the board. 
+           ) st.dict (stringToListOfChar wordOnBoard)
+           
+        let rec aux (hand: MultiSet.MultiSet<uint32>) (subdict: Dictionary.Dict) (currentWord: List<uint32 * char>) =    
+            List.fold (fun acc tileId ->
+                let charPointvalueSet = tileIdToTile tileId pieces
+                Set.fold (fun acc (char, pv) -> 
+                   match Dictionary.step char subdict with 
+                     | Some (b, node) ->
+                        let newHand = MultiSet.removeSingle tileId hand
+                        if b then
+                            (currentWord @ [(tileId, char)]) :: aux newHand node (currentWord @ [(tileId, char)])
+                        else
+                            aux newHand node (currentWord @ [(tileId, char)])
+                     | None -> acc
+                ) acc charPointvalueSet
+            ) [] (MultiSet.toList st.hand)
+        
+        List.map (fun char -> ((charToTileId char), char)) (stringToListOfChar wordOnBoard) //Makes the word on board of type string into a List<uint32, char> (this is same type as currentWord)
+        |> aux st.hand subdict //Calls aux to find all possible completed words from the word on the board.(this returns a list of currentWord's)
+        |> List.map (fun word -> (word, (startCoord, direction)))  //Maps those possible words to a starting coord and a direction (this then maps over the list of currentWord's to a startcoordinate and direction)
+        
+        // addTwo 5  præcis det samme som   5 |> addTwo
+        
     
     let testHand =
          MultiSet.empty
