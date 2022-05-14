@@ -80,21 +80,16 @@ module Scrabble =
     
     //Tile ID to Character
     let tileIdToChar (tileId: uint32) =  Convert.ToChar(tileId + 64u)
-    
-    
-    
-    
+
     let testHand =
          MultiSet.empty
          |> MultiSet.add (charToTileId 'a') 2u
          |> MultiSet.add (charToTileId 's') 1u
          
-         
     // MultiSet.fold f acc testHand -> 
          
     //let rec findMove = 
         
-       
     // Handle coordinates (x,y) stuff like horizontal and vertical direction of the word. Note that (0,0) is center.
     // Therefore (-1, 0) is hor left, and (0, -1) is ver up. (0,1) ver down. (1,0) ver right
     
@@ -102,14 +97,18 @@ module Scrabble =
 
         let rec aux (st : State.state) =
             Print.printHand pieces (State.hand st)
-
-            // remove the force print when you move on from manual input (or when you have learnt the format)
-            forcePrint "Input move (format '(<x-coordinate> <y-coordinate> <piece id><character><point-value> )*', note the absence of space between the last inputs)\n\n"
-            let input =  System.Console.ReadLine()
-            let move = failwith "notImplemented" //move = findMove move
-
+            
+            //Only if playerTurn = playerNumber{
+            // "Input move (format '(<x-coordinate> <y-coordinate> <piece id><character><point-value> )*', note the absence of space between the last inputs)"
+            let move = failwith "not implemented" //move = findMove move
             debugPrint (sprintf "Player %d -> Server:\n%A\n" (State.playerNumber st) move) // keep the debug lines. They are useful.
             send cstream (SMPlay move)
+            //}
+
+
+            //send cstream (SMPass) "not implemented"
+            //send cstream (SMForfeit) "not implemented"
+            //send cstream (SMChange (uint32 list)) "not implemented"
 
             let msg = recv cstream
             debugPrint (sprintf "Player %d <- Server:\n%A\n" (State.playerNumber st) move) // keep the debug lines. They are useful.
@@ -127,12 +126,30 @@ module Scrabble =
                 (* Failed play. Update your state *)
                 let st' = st // This state needs to be updated
                 aux st'
-            | RCM (CMGameOver _) -> ()
-            | RCM a -> failwith (sprintf "not implmented: %A" a)
+            | RCM (CMPassed (pid)) ->
+                (* Player passed. Update your state *)
+                let st' = st // This state needs to be updated
+                aux st'
+            | RCM (CMForfeit (pid)) ->
+                (* Player left the game. Update your state *)
+                let st' = st // This state needs to be updated
+                aux st'
+            | RCM (CMChange (pid, numberOfTiles)) ->
+                (* Player successfully changed numberOfTiles tiles. Update your state *)
+                let st' = st // This state needs to be updated
+                aux st'
+            | RCM (CMChangeSuccess (tiles)) ->
+                (* Successful changed tiles by you. Update your state *)
+                let st' = st // This state needs to be updated
+                aux st'
+            | RCM (CMTimeout (pid)) ->
+                (* Player timed out. This counts as passing for all gameplay purposes. Update your state *)
+                let st' = st // This state needs to be updated
+                aux st'
+            | RCM (CMGameOver _) -> () //Loop ends i.e. Game ends.
             | RGPE err -> printfn "Gameplay Error:\n%A" err; aux st
 
-
-        aux st
+        aux st //Starts the loop
 
     let startGame 
             (boardP : boardProg) 
