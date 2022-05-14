@@ -112,7 +112,6 @@ module Scrabble =
              move :: aux(currentIndex+1) (nextPosition)
          aux 0 startCoord 
     
-    
     //concludeWord() is used in findWordsOnBoard to finalize words from the current coordinate of a starter character.
     let findWordsOnBoard (piecesInPlay: Map<coord, uint32>) =
         let rec concludeWord (wordBuilder: string) (currentCoord: coord) (direction: coord) =
@@ -136,12 +135,7 @@ module Scrabble =
             let tempAcc = if (fst horizontalWord) = "!" then acc else horizontalWord :: acc
             if (fst verticalWord) = "!" then tempAcc else verticalWord :: tempAcc
             ) [] piecesInPlay
-        
-        
-        
-        
-    
-        
+
         //Note to self, the word 'NODE' is a SUBTREE
         //Words that can be played from my hand, by finding all subtrees in the dictionary that correspond to the final letter of the word on the board. 
     let findPlayableWords (wordOnBoard: string) (startCoord: coord) (direction: coord) (st: State.state) (pieces: Map<uint32, tile>) =
@@ -210,15 +204,20 @@ module Scrabble =
 
         let rec aux (st : State.state) =
             Print.printHand pieces (State.hand st)
-
-            // remove the force print when you move on from manual input (or when you have learnt the format)
+            
             forcePrint "Input move (format '(<x-coordinate> <y-coordinate> <piece id><character><point-value> )*', note the absence of space between the last inputs)\n\n"
-            //let input =  System.Console.ReadLine()
+          
             let placeableWord = findPlaceableWord st pieces
             let move = wordToSMMove (fst placeableWord) (fst (snd placeableWord)) (snd (snd placeableWord)) 
 
+
             debugPrint (sprintf "Player %d -> Server:\n%A\n" (State.playerNumber st) move) // keep the debug lines. They are useful.
             send cstream (SMPlay move)
+            //}
+            
+            //send cstream (SMPass) "not implemented"
+            //send cstream (SMForfeit) "not implemented"
+            //send cstream (SMChange (uint32 list)) "not implemented"
 
             let msg = recv cstream
             debugPrint (sprintf "Player %d <- Server:\n%A\n" (State.playerNumber st) move) // keep the debug lines. They are useful.
@@ -236,12 +235,30 @@ module Scrabble =
                 (* Failed play. Update your state *)
                 let st' = st // This state needs to be updated
                 aux st'
-            | RCM (CMGameOver _) -> ()
-            | RCM a -> failwith (sprintf "not implmented: %A" a)
+            | RCM (CMPassed (pid)) ->
+                (* Player passed. Update your state *)
+                let st' = st // This state needs to be updated
+                aux st'
+            | RCM (CMForfeit (pid)) ->
+                (* Player left the game. Update your state *)
+                let st' = st // This state needs to be updated
+                aux st'
+            | RCM (CMChange (pid, numberOfTiles)) ->
+                (* Player successfully changed numberOfTiles tiles. Update your state *)
+                let st' = st // This state needs to be updated
+                aux st'
+            | RCM (CMChangeSuccess (tiles)) ->
+                (* Successful changed tiles by you. Update your state *)
+                let st' = st // This state needs to be updated
+                aux st'
+            | RCM (CMTimeout (pid)) ->
+                (* Player timed out. This counts as passing for all gameplay purposes. Update your state *)
+                let st' = st // This state needs to be updated
+                aux st'
+            | RCM (CMGameOver _) -> () //Loop ends i.e. Game ends.
             | RGPE err -> printfn "Gameplay Error:\n%A" err; aux st
 
-
-        aux st
+        aux st //Starts the loop
 
     let startGame 
             (boardP : boardProg) 
