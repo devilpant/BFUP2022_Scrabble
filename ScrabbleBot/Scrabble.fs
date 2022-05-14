@@ -1,6 +1,8 @@
 ﻿namespace Huey
 
 open System
+open System.Collections.Generic
+open Microsoft.FSharp.Collections
 open ScrabbleUtil
 open ScrabbleUtil.ServerCommunication
 
@@ -100,11 +102,11 @@ module Scrabble =
         | None -> false
     
     //Converts a word into a list of SMMove, should later be called with either moveHorizontal or moveVertical. This should be done once a valid word has been found.
-    let stringToSMMove (word: string) (startCoord: coord) (direction: coord) =
+    let wordToSMMove (word: List<uint32 * char>) (startCoord: coord) (direction: coord) =
          let rec aux (currentIndex: int) (coord: coord) =
              if currentIndex >= word.Length then [] else
-             let char = word.[currentIndex]
-             let tileId = charToTileId(char)
+             let char = snd word.[currentIndex]
+             let tileId = fst word.[currentIndex]
              let move = (coord, (tileId, (char, charToPointValue(char))))
              let nextPosition = nextCoord coord direction
              move :: aux(currentIndex+1) (nextPosition)
@@ -115,20 +117,20 @@ module Scrabble =
     let findWordsOnBoard (piecesInPlay: Map<coord, uint32>) =
         let rec concludeWord (wordBuilder: string) (currentCoord: coord) (direction: coord) =
             let nextPosition = nextCoord currentCoord direction
-            if isSquareOccupied nextPosition piecesInPlay then
+            if isSquareOccupied nextPosition piecesInPlay then //if theres a letter on the square, add it to the wordBuilder.
                 let tileIdOnNextPosition = Map.find nextPosition piecesInPlay
                 concludeWord (wordBuilder + string (tileIdToChar tileIdOnNextPosition)) nextPosition direction
-            else wordBuilder
+            else wordBuilder //Once square no longer occupied, return word. 
                     
         Map.fold ( fun acc coord tileId ->
             let charAtCoord = string (tileIdToChar tileId)
             let checkLeft = isSquareOccupied(previousCoord coord moveHorizontal) piecesInPlay
             //Dummy value, since there is something on the left hand side of current character
-            let horizontalWord = if checkLeft then ("!", ((0,0), moveHorizontal)) else (concludeWord charAtCoord coord moveHorizontal, (coord, moveHorizontal))
+            let horizontalWord = if checkLeft then ("!", ((0,0), moveHorizontal)) else (concludeWord charAtCoord coord moveHorizontal, (coord, moveHorizontal)) //Left is free, finish word horizontally
             
             let checkUp = isSquareOccupied(previousCoord coord moveVertical) piecesInPlay
             //Dummy value, since there is something above the current character
-            let verticalWord = if checkUp then ("!", ((0,0), moveVertical)) else (concludeWord charAtCoord coord moveVertical, (coord, moveVertical))
+            let verticalWord = if checkUp then ("!", ((0,0), moveVertical)) else (concludeWord charAtCoord coord moveVertical, (coord, moveVertical)) //Up is free, finish word vertically
         
             //If the character at the current coordinate BEGINS a word, then prepend it to the list of words already on the board. 
             let tempAcc = if (fst horizontalWord) = "!" then acc else horizontalWord :: acc
@@ -141,6 +143,7 @@ module Scrabble =
     
         
         //Note to self, the word 'NODE' is a SUBTREE
+        //Words that can be played from my hand, by finding all subtrees in the dictionary that correspond to the final letter of the word on the board. 
     let findPlayableWords (wordOnBoard: string) (startCoord: coord) (direction: coord) (st: State.state) (pieces: Map<uint32, tile>) =
         let subdict =
            List.fold (fun acc char -> 
@@ -150,16 +153,16 @@ module Scrabble =
            ) st.dict (stringToListOfChar wordOnBoard)
            
         let rec aux (hand: MultiSet.MultiSet<uint32>) (subdict: Dictionary.Dict) (currentWord: List<uint32 * char>) =    
-            List.fold (fun acc tileId ->
+            List.fold (fun acc tileId -> //For each tile in my hand. 
                 let charPointvalueSet = tileIdToTile tileId pieces
-                Set.fold (fun acc (char, pv) -> 
+                Set.fold (fun acc (char, pv) -> //For each bogstav that the tile can be. (Only wildcards can be multiple bogstaver)
                    match Dictionary.step char subdict with 
                      | Some (b, node) ->
-                        let newHand = MultiSet.removeSingle tileId hand
-                        if b then
-                            (currentWord @ [(tileId, char)]) :: aux newHand node (currentWord @ [(tileId, char)])
-                        else
-                            aux newHand node (currentWord @ [(tileId, char)])
+                        let newHand = MultiSet.removeSingle tileId hand //Remove bogstav from hand if it is steppable. (we find it in the subtree)
+                        if b then //b is true when the word is finished. (its a node with a true boolean)
+                            (currentWord @ [(tileId, char)]) :: aux newHand node (currentWord @ [(tileId, char)]) //Prepend the finished word and recursively check for more words from new hand.
+                        else 
+                            aux newHand node (currentWord @ [(tileId, char)]) // recursively check for more words from new hand.
                      | None -> acc
                 ) acc charPointvalueSet
             ) [] (MultiSet.toList st.hand)
@@ -167,22 +170,39 @@ module Scrabble =
         List.map (fun char -> ((charToTileId char), char)) (stringToListOfChar wordOnBoard) //Makes the word on board of type string into a List<uint32, char> (this is same type as currentWord)
         |> aux st.hand subdict //Calls aux to find all possible completed words from the word on the board.(this returns a list of currentWord's)
         |> List.map (fun word -> (word, (startCoord, direction)))  //Maps those possible words to a starting coord and a direction (this then maps over the list of currentWord's to a startcoordinate and direction)
-        
         // addTwo 5  præcis det samme som   5 |> addTwo
-        
     
-    let testHand =
-         MultiSet.empty
-         |> MultiSet.add (charToTileId 'a') 2u
-         |> MultiSet.add (charToTileId 's') 1u
+    let findLongestWord (wordList: List<(List<uint32 * char>) * (coord * coord)>) =
+        //Dummy value because were only interested in the actual lenght of the word.
+        List.fold (fun acc ((wordList: List<uint32 * char>), (coord, direction)) ->
+           if List.length wordList > List.length (fst acc) then (wordList, (coord, direction)) else acc
+            ) ([], ((0, 0), moveHorizontal))  wordList
     
-         
-    // MultiSet.fold f acc testHand -> 
-         
-    //let rec findMove (tiles: Map<uint32, tile>) (st:  State.state) =
-        
-        
-       
+    //Words that can be placed on the current state of the board. 
+    let findPlaceableWord (st : State.state) (pieces: Map<uint32, tile>) =
+        let wordsOnBoard = findWordsOnBoard st.piecesInPlay
+        let allPlaceableWords =
+            List.fold (fun acc (word, (coord, direction)) -> // for each word on board ...
+                let playableWords = findPlayableWords word coord direction st pieces
+                let placeableWordsFromWordOnBoard =
+                    List.fold (fun acc ((wordList: List<uint32 * char>), (coord, direction)) -> // for each playable word from my hand ...
+                        let rec aux (currentIndex: int) (coord: coord) (pip :Map<coord, uint32>)= //pip = pieces in play ... function checks if the word can be placed?
+                            if currentIndex >= word.Length then
+                                let filteredBoard = List.filter (fun ((wordOnBoard:string), _ ) -> wordOnBoard.Length <> 1) (findWordsOnBoard pip)
+                                List.fold (fun acc (wordOnBoard: string, _) -> // for each valid word in the temporary state ... 
+                                        if Dictionary.lookup wordOnBoard st.dict then acc else false //acc is true until a word that is not in the dictionary is found, then it is set to false.
+                                        ) true filteredBoard 
+                            else
+                                let tmpPIP = Map.add coord (fst (wordList.[currentIndex])) pip //We try to add the placeable words in a replica temporary state of PIP.
+                                let nextPosition = nextCoord coord direction 
+                                aux(currentIndex+1) nextPosition tmpPIP 
+                        if aux 0 coord st.piecesInPlay then (wordList,(coord, direction)) :: acc //If the word CAN be placed, prepend to list and.
+                            else acc //Else return current list.
+                    ) [] playableWords
+                placeableWordsFromWordOnBoard @ acc
+            ) [] wordsOnBoard
+        findLongestWord allPlaceableWords //Of all words that can be placed, return the longest one. 
+
     // Handle coordinates (x,y) stuff like horizontal and vertical direction of the word. Note that (0,0) is center.
     // Therefore (-1, 0) is hor left, and (0, -1) is ver up. (0,1) ver down. (1,0) hor right
     
@@ -193,8 +213,9 @@ module Scrabble =
 
             // remove the force print when you move on from manual input (or when you have learnt the format)
             forcePrint "Input move (format '(<x-coordinate> <y-coordinate> <piece id><character><point-value> )*', note the absence of space between the last inputs)\n\n"
-            let input =  System.Console.ReadLine()
-            let move = failwith "notImplemented" //move = findMove move
+            //let input =  System.Console.ReadLine()
+            let placeableWord = findPlaceableWord st pieces
+            let move = wordToSMMove (fst placeableWord) (fst (snd placeableWord)) (snd (snd placeableWord)) 
 
             debugPrint (sprintf "Player %d -> Server:\n%A\n" (State.playerNumber st) move) // keep the debug lines. They are useful.
             send cstream (SMPlay move)

@@ -53,13 +53,13 @@ let main argv =
         time (fun () -> ScrabbleUtil.Dictionary.mkDict words dictAPI)
 
     // Uncomment to test your dictionary
-    // ScrabbleUtil.DebugPrint.debugPrint ("Dictionary test sucessful\n")
-    // let incorrectWords = ScrabbleUtil.Dictionary.test words 10 (dictionary false) // change to true if using a GADDAG
-    // match incorrectWords with
-    // | [] -> ScrabbleUtil.DebugPrint.debugPrint ("Dictionary test sucessful!\n")
-    // | _  ->
-    //    ScrabbleUtil.DebugPrint.debugPrint ("Dictionary test failed for at least the following words: \n") 
-    //    List.iter (fun str -> ScrabbleUtil.DebugPrint.debugPrint (sprintf "%s\n" str)) incorrectWords
+    ScrabbleUtil.DebugPrint.debugPrint ("Dictionary test sucessful\n")
+    let incorrectWords = ScrabbleUtil.Dictionary.test words 10 (dictionary false) // change to true if using a GADDAG
+    match incorrectWords with
+    | [] -> ScrabbleUtil.DebugPrint.debugPrint ("Dictionary test sucessful!\n")
+    | _  ->
+       ScrabbleUtil.DebugPrint.debugPrint ("Dictionary test failed for at least the following words: \n") 
+       List.iter (fun str -> ScrabbleUtil.DebugPrint.debugPrint (sprintf "%s\n" str)) incorrectWords
         
     // Uncomment this line to call your client
     // let players    = [("Huey Lewis", dictionary, Huey.Scrabble.startGame)] TODO: Uncomment this and comment below
