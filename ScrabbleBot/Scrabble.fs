@@ -274,7 +274,8 @@ module Scrabble =
                 (* Player left the game. Update your state *)
                 debugPrint (sprintf "Player %d <- Server:\nforfeited\n" (pid))
                 let st' = updatePlayerCount st pid
-                aux st'
+                let st'' = nextTurn st'
+                aux st''
             | RCM (CMChange (pid, numberOfTiles)) ->
                 (* Player successfully changed numberOfTiles tiles. Update your state *)
                 debugPrint (sprintf "Player %d <- Server:\nchanged %d tiles\n" (pid) (numberOfTiles))
@@ -284,7 +285,8 @@ module Scrabble =
                 (* Successful changed tiles by you. Update your state *)
                 debugPrint (sprintf "Player %d <- Server:\n\nChange success\n" (State.playerNumber st))
                 let st' = updateHand st tiles
-                aux st'
+                let st'' = nextTurn st'
+                aux st''
             | RCM (CMGameOver _) -> () //Loop ends i.e. Game ends.
             | RGPE err -> printfn "Gameplay Error:\n%A" err; aux st
 
