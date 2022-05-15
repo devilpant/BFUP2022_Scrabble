@@ -234,6 +234,9 @@ module Scrabble =
         { st with
             playerForfeited = st.playerForfeited.Add(pid);}
 
+    let filterMove (st : State.state) (move : list<coord * (uint32 * (char * int))>) =
+       List.filter (fun (coord, _) -> (isSquareOccupied coord st.piecesInPlay)) move
+
     let playGame cstream (pieces: Map<uint32, tile>) (st : State.state) =
 
         let rec aux (st : State.state) =
@@ -246,15 +249,16 @@ module Scrabble =
                 match st.playerTurn = st.playerNumber with
                 | true -> 
                     let placeableWord = findPlaceableWord st pieces
-                    if (fst placeableWord).Length > 0 then
-                        let move = wordToSMMove (fst placeableWord) (fst (snd placeableWord)) (snd (snd placeableWord)) 
-                        debugPrint (sprintf "Player %d -> Server:\n%A\n" (State.playerNumber st) move) // keep the debug lines. They are useful.
-                        send cstream (SMPlay move)
+                    if (fst placeableWord).Length > 1 then
+                        let move = wordToSMMove (fst placeableWord) (fst (snd placeableWord)) (snd (snd placeableWord))
+                        let move' = filterMove st move 
+                        debugPrint (sprintf "Player %d -> Server:\n%A\n" (State.playerNumber st) move') // keep the debug lines. They are useful.
+                        send cstream (SMPlay move')
                     else
                         debugPrint (sprintf "Player %d -> Server:\npassed\n" (State.playerNumber st)) // keep the debug lines. They are useful.
                         send cstream (SMPass)
                 | false -> 
-                    debugPrint (sprintf "Waiting for my turn")
+                    debugPrint (sprintf "\n")
             
 
             //send cstream (SMForfeit) "not implemented" don not do this ever right?
@@ -265,41 +269,34 @@ module Scrabble =
             match msg with
             | RCM (CMPlaySuccess(move, points, newPieces)) ->
                 (* Successful play by you. Update your state (remove old tiles, add the new ones, change turn, etc) *)
-                debugPrint (sprintf "Player %d <- Server:\n%A\nsuccess\n" (State.playerNumber st) move)
                 let st' = updatePiecesInPlay st move
                 let st'' = updateHandWithNewPieces st' newPieces move
                 let st''' = nextTurn st''
                 aux st'''
             | RCM (CMPlayed (pid, move, points)) ->
                 (* Successful play by other player. Update your state *)
-                debugPrint (sprintf "Player %d <- Server:\n%A\nsuccess\n" (pid) move)
                 let st' = updatePiecesInPlay st move
                 let st'' = nextTurn st'
                 aux st''
             | RCM (CMPlayFailed (pid, move)) ->
                 (* Failed play. Update your state *)
-                debugPrint (sprintf "Player %d <- Server:\n%A\nfailed\n" (pid) move)
                 let st' = nextTurn st 
                 aux st'
             | RCM (CMPassed (pid)) | RCM (CMTimeout (pid)) ->
                 (* Player passed. Update your state *)
-                debugPrint (sprintf "Player %d <- Server:\npassed\n" (pid))
                 let st' = nextTurn st
                 aux st'
             | RCM (CMForfeit (pid)) ->
                 (* Player left the game. Update your state *)
-                debugPrint (sprintf "Player %d <- Server:\nforfeited\n" (pid))
                 let st' = updatePlayerCount st pid
                 let st'' = nextTurn st'
                 aux st''
             | RCM (CMChange (pid, numberOfTiles)) ->
                 (* Player successfully changed numberOfTiles tiles. Update your state *)
-                debugPrint (sprintf "Player %d <- Server:\nchanged %d tiles\n" (pid) (numberOfTiles))
                 let st' = nextTurn st 
                 aux st'
             | RCM (CMChangeSuccess (tiles)) ->
                 (* Successful changed tiles by you. Update your state *)
-                debugPrint (sprintf "Player %d <- Server:\n\nChange success\n" (State.playerNumber st))
                 let st' = st
                 let st'' = nextTurn st'
                 aux st''
