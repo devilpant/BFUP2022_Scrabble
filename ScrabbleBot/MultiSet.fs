@@ -12,6 +12,7 @@
     let addSingle a (M s) = if contains a (M s) then add a (s.[a]+1u) (M s) else add a 1u (M s)
     let remove a n (M s) = if s.[a] > n then add a (s.[a]-n) (M s) else M (s.Remove a)
     let removeSingle a (M s) = if contains a (M s) then remove a 1u (M s) else M (s)
+ 
     let fold f acc (M s) = Map.fold f acc s
     let foldBack f (M s) acc = Map.foldBack f s acc
     let toList (M s) =
