@@ -263,7 +263,7 @@ module Scrabble =
             | RCM (CMPlayFailed (pid, move)) ->
                 (* Failed play. Update your state *)
                 debugPrint (sprintf "Player %d <- Server:\n%A\nfailed\n" (pid) move)
-                let st' = st 
+                let st' = nextTurn st 
                 aux st'
             | RCM (CMPassed (pid)) | RCM (CMTimeout (pid)) ->
                 (* Player passed. Update your state *)
