@@ -202,17 +202,33 @@ module Scrabble =
     // Handle coordinates (x,y) stuff like horizontal and vertical direction of the word. Note that (0,0) is center.
     // Therefore (-1, 0) is hor left, and (0, -1) is ver up. (0,1) ver down. (1,0) hor right
     
+    let movesToListOfPlays (move : list<coord * (uint32 * (char * int))>) : list<coord*uint32> = 
+        let mutable newList = []
+        for element in move do
+            newList <- ((fst element), (fst (snd element))) :: newList
+        newList 
+
+    let movesToListOfTiles (move : list<coord * (uint32 * (char * int))>) : list<uint32> = 
+        let mutable newList = []
+        for element in move do
+            newList <- (fst (snd element)) :: newList
+        newList  
+
     let nextTurn (st : State.state) = 
         { st with 
             playerTurn = (st.playerTurn % st.playerAmount) + 1u;}
 
-    let updateHand (st : State.state) (np : list<uint32*uint32>) = 
+    let removePlayedPiecesFromHand (st : State.state) (move : list<coord * (uint32 * (char * int))>) =
         { st with
-            hand = st.hand;} //List.fold (fun acc (x, k) -> MultiSet.add x k acc) MultiSet.empty hand // This expects an empty hand
+            hand = List.fold (fun acc x -> MultiSet.removeSingle x acc) st.hand (movesToListOfTiles move);}
+
+    let updateHandWithNewPieces (st : State.state) (np : list<uint32*uint32>) (move : list<coord * (uint32 * (char * int))>) = 
+        { st with
+            hand = List.fold (fun acc (x, k) -> MultiSet.add x k acc) (removePlayedPiecesFromHand st move).hand np; }
 
     let updatePiecesInPlay (st : State.state) (move : list<coord * (uint32 * (char * int))>) =
-        {st with
-            piecesInPlay = st.piecesInPlay;}
+        { st with
+            piecesInPlay = List.fold (fun acc (x, k ) -> Map.add x k acc) st.piecesInPlay (movesToListOfPlays move);}
 
     let updatePlayerCount (st : State.state) (pid : uint32) = 
         { st with
@@ -251,7 +267,7 @@ module Scrabble =
                 (* Successful play by you. Update your state (remove old tiles, add the new ones, change turn, etc) *)
                 debugPrint (sprintf "Player %d <- Server:\n%A\nsuccess\n" (State.playerNumber st) move)
                 let st' = updatePiecesInPlay st move
-                let st'' = updateHand st' newPieces
+                let st'' = updateHandWithNewPieces st' newPieces move
                 let st''' = nextTurn st''
                 aux st'''
             | RCM (CMPlayed (pid, move, points)) ->
@@ -284,7 +300,7 @@ module Scrabble =
             | RCM (CMChangeSuccess (tiles)) ->
                 (* Successful changed tiles by you. Update your state *)
                 debugPrint (sprintf "Player %d <- Server:\n\nChange success\n" (State.playerNumber st))
-                let st' = updateHand st tiles
+                let st' = st
                 let st'' = nextTurn st'
                 aux st''
             | RCM (CMGameOver _) -> () //Loop ends i.e. Game ends.
