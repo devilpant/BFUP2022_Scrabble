@@ -53,9 +53,11 @@ module State =
         playerTurn    : uint32
         hand          : MultiSet.MultiSet<uint32>
         piecesInPlay: Map<coord, uint32> //Pair of coordinate to a tileId
+        timeout : option<uint32>
+        playerForfeited: Set<uint32>
     }
 
-    let mkState b d pn h pa pt = {board = b; dict = d;  playerNumber = pn; hand = h; playerAmount = pa; playerTurn = pt; piecesInPlay = Map.empty;}
+    let mkState b d pn h pa pt tout = {board = b; dict = d;  playerNumber = pn; hand = h; playerAmount = pa; playerTurn = pt; piecesInPlay = Map.empty; timeout = tout; playerForfeited = Set.empty;}
 
     let board st         = st.board
     let dict st          = st.dict
@@ -200,61 +202,104 @@ module Scrabble =
     // Handle coordinates (x,y) stuff like horizontal and vertical direction of the word. Note that (0,0) is center.
     // Therefore (-1, 0) is hor left, and (0, -1) is ver up. (0,1) ver down. (1,0) hor right
     
+    let movesToListOfPlays (move : list<coord * (uint32 * (char * int))>) : list<coord*uint32> = 
+        let mutable newList = []
+        for element in move do
+            newList <- ((fst element), (fst (snd element))) :: newList
+        newList 
+
+    let movesToListOfTiles (move : list<coord * (uint32 * (char * int))>) : list<uint32> = 
+        let mutable newList = []
+        for element in move do
+            newList <- (fst (snd element)) :: newList
+        newList  
+
+    let nextTurn (st : State.state) = 
+        { st with 
+            playerTurn = (st.playerTurn % st.playerAmount) + 1u;}
+
+    let removePlayedPiecesFromHand (st : State.state) (move : list<coord * (uint32 * (char * int))>) =
+        { st with
+            hand = List.fold (fun acc x -> MultiSet.removeSingle x acc) st.hand (movesToListOfTiles move);}
+
+    let updateHandWithNewPieces (st : State.state) (np : list<uint32*uint32>) (move : list<coord * (uint32 * (char * int))>) = 
+        { st with
+            hand = List.fold (fun acc (x, k) -> MultiSet.add x k acc) (removePlayedPiecesFromHand st move).hand np; }
+
+    let updatePiecesInPlay (st : State.state) (move : list<coord * (uint32 * (char * int))>) =
+        { st with
+            piecesInPlay = List.fold (fun acc (x, k ) -> Map.add x k acc) st.piecesInPlay (movesToListOfPlays move);}
+
+    let updatePlayerCount (st : State.state) (pid : uint32) = 
+        { st with
+            playerForfeited = st.playerForfeited.Add(pid);}
+
+    let filterMove (st : State.state) (move : list<coord * (uint32 * (char * int))>) =
+       List.filter (fun (coord, _) -> (isSquareOccupied coord st.piecesInPlay)) move
+
     let playGame cstream (pieces: Map<uint32, tile>) (st : State.state) =
 
         let rec aux (st : State.state) =
-            Print.printHand pieces (State.hand st)
             
-            forcePrint "Input move (format '(<x-coordinate> <y-coordinate> <piece id><character><point-value> )*', note the absence of space between the last inputs)\n\n"
-          
-            let placeableWord = findPlaceableWord st pieces
-            let move = wordToSMMove (fst placeableWord) (fst (snd placeableWord)) (snd (snd placeableWord)) 
-
-
-            debugPrint (sprintf "Player %d -> Server:\n%A\n" (State.playerNumber st) move) // keep the debug lines. They are useful.
-            send cstream (SMPlay move)
-            //}
+            match st.playerForfeited.Contains(st.playerTurn) with
+            | true -> 
+                let st' = nextTurn st
+                aux st'
+            | false ->
+                match st.playerTurn = st.playerNumber with
+                | true -> 
+                    let placeableWord = findPlaceableWord st pieces
+                    if (fst placeableWord).Length > 1 then
+                        let move = wordToSMMove (fst placeableWord) (fst (snd placeableWord)) (snd (snd placeableWord))
+                        let move' = filterMove st move 
+                        debugPrint (sprintf "Player %d -> Server:\n%A\n" (State.playerNumber st) move') // keep the debug lines. They are useful.
+                        send cstream (SMPlay move')
+                    else
+                        debugPrint (sprintf "Player %d -> Server:\npassed\n" (State.playerNumber st)) // keep the debug lines. They are useful.
+                        send cstream (SMPass)
+                | false -> 
+                    debugPrint (sprintf "\n")
             
-            //send cstream (SMPass) "not implemented"
-            //send cstream (SMForfeit) "not implemented"
-            //send cstream (SMChange (uint32 list)) "not implemented"
+
+            //send cstream (SMForfeit) "not implemented" don not do this ever right?
+            //send cstream (SMChange (uint32 list)) "not implemented" maybe do this sometimes?
 
             let msg = recv cstream
-            debugPrint (sprintf "Player %d <- Server:\n%A\n" (State.playerNumber st) move) // keep the debug lines. They are useful.
 
             match msg with
-            | RCM (CMPlaySuccess(ms, points, newPieces)) ->
+            | RCM (CMPlaySuccess(move, points, newPieces)) ->
                 (* Successful play by you. Update your state (remove old tiles, add the new ones, change turn, etc) *)
-                let st' = st // This state needs to be updated
-                aux st'
-            | RCM (CMPlayed (pid, ms, points)) ->
+                let st' = updatePiecesInPlay st move
+                let st'' = updateHandWithNewPieces st' newPieces move
+                let st''' = nextTurn st''
+                aux st'''
+            | RCM (CMPlayed (pid, move, points)) ->
                 (* Successful play by other player. Update your state *)
-                let st' = st // This state needs to be updated
-                aux st'
-            | RCM (CMPlayFailed (pid, ms)) ->
+                let st' = updatePiecesInPlay st move
+                let st'' = nextTurn st'
+                aux st''
+            | RCM (CMPlayFailed (pid, move)) ->
                 (* Failed play. Update your state *)
-                let st' = st // This state needs to be updated
+                let st' = nextTurn st 
                 aux st'
-            | RCM (CMPassed (pid)) ->
+            | RCM (CMPassed (pid)) | RCM (CMTimeout (pid)) ->
                 (* Player passed. Update your state *)
-                let st' = st // This state needs to be updated
+                let st' = nextTurn st
                 aux st'
             | RCM (CMForfeit (pid)) ->
                 (* Player left the game. Update your state *)
-                let st' = st // This state needs to be updated
-                aux st'
+                let st' = updatePlayerCount st pid
+                let st'' = nextTurn st'
+                aux st''
             | RCM (CMChange (pid, numberOfTiles)) ->
                 (* Player successfully changed numberOfTiles tiles. Update your state *)
-                let st' = st // This state needs to be updated
+                let st' = nextTurn st 
                 aux st'
             | RCM (CMChangeSuccess (tiles)) ->
                 (* Successful changed tiles by you. Update your state *)
-                let st' = st // This state needs to be updated
-                aux st'
-            | RCM (CMTimeout (pid)) ->
-                (* Player timed out. This counts as passing for all gameplay purposes. Update your state *)
-                let st' = st // This state needs to be updated
-                aux st'
+                let st' = st
+                let st'' = nextTurn st'
+                aux st''
             | RCM (CMGameOver _) -> () //Loop ends i.e. Game ends.
             | RGPE err -> printfn "Gameplay Error:\n%A" err; aux st
 
@@ -284,5 +329,5 @@ module Scrabble =
                   
         let handSet = List.fold (fun acc (x, k) -> MultiSet.add x k acc) MultiSet.empty hand
 
-        fun () -> playGame cstream tiles (State.mkState board dict playerNumber handSet numPlayers playerTurn )
+        fun () -> playGame cstream tiles (State.mkState board dict playerNumber handSet numPlayers playerTurn timeout)
         

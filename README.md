@@ -5,6 +5,7 @@
 - Do the Scrabble project in groups of two or at most three.
 
 ## Hand-in
+
 - Make sure that you have pushed the latest version to the NuGet server and that there are no printfn or anything similar in the code. Debug output through ScrabbleUtil is accepted as those outputs can be toggled.
 
 - A zipped version of your scrabble bot project (you do not need to include the executable)

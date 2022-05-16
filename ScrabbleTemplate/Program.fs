@@ -46,7 +46,7 @@ let main argv =
 
     let dictAPI =
         // TODO: Uncomment if you have implemented a dictionary. last element None if you have not implemented a GADDAG
-         Some (MyDictionary.empty, MyDictionary.insert, MyDictionary.step, None) 
+        Some (MyDictionary.empty, MyDictionary.insert, MyDictionary.step, None) 
         // None
 
     let (dictionary, time) = 
@@ -62,8 +62,8 @@ let main argv =
        List.iter (fun str -> ScrabbleUtil.DebugPrint.debugPrint (sprintf "%s\n" str)) incorrectWords
         
     // Uncomment this line to call your client
-    // let players    = [("Huey Lewis", dictionary, Huey.Scrabble.startGame)] TODO: Uncomment this and comment below
-    let players = spawnMultiples "OxyphenButazone" dictionary Oxyphenbutazone.Scrabble.startGame 2
+    let players    = [("Huey Lewis", dictionary, Huey.Scrabble.startGame); ("OxyphenButazone", dictionary, Oxyphenbutazone.Scrabble.startGame)] // TODO: Uncomment this and comment below
+    // let players = spawnMultiples "OxyphenButazone" dictionary Oxyphenbutazone.Scrabble.startGame 2
         
 
     do ScrabbleServer.Comm.startGame 
