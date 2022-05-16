@@ -12,7 +12,7 @@
 - The name of your NuGet package.
 
 - Also, in plain text, mark what steps you have completed:
-  - Multi-player and dictionary: no
+  - Multi-player and dictionary: yes
   - Parsing boards playing on all boards: no
   - parallelism: no
   - Respect the timeout flag: no
