@@ -18,5 +18,5 @@
     let toList (M s) =
         Map.fold (fun acc k v ->
             let array = Array.create (int v) k 
-            Array.toList array @ acc //@ concatenates the two lists :)
+            Array.toList array @ acc 
         ) [] s

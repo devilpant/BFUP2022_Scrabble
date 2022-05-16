@@ -10,8 +10,9 @@
 
 - A zipped version of your scrabble bot project (you do not need to include the executable)
 - The name of your NuGet package.
+
 - Also, in plain text, mark what steps you have completed:
-  - Multi-player and dictionary (yes/no)
-  - Parsing boards playing on all boards
-  - parallelism (yes/no)
-  - Respect the timeout flag (yes/no)
+  - Multi-player and dictionary: no
+  - Parsing boards playing on all boards: no
+  - parallelism: no
+  - Respect the timeout flag: no

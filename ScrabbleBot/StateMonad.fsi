@@ -33,3 +33,4 @@
     val wordLength     : SM<int>
     val characterValue : int -> SM<char>
     val pointValue     : int -> SM<int>
+    

@@ -129,19 +129,6 @@ module internal Eval
 
     let rec stmntEval stmnt : SM<unit> = failwith "Not implemented"
 
-    (*
-    let rec stmntEval stmnt : SM<unit> = 
-        match b with
-        | Declare (var) ->  declare var
-        | Ass (x, a) -> 
-        | Skip -> s
-        | Seq (stm1, stm2) ->
-        | ITE (b, stm1, stm2) -> if(boolEval(b)) then stm1 else stm2
-        | While (b, stm1) ->
-    *)
-
-(* Part 3 (Optional) *)
-
     type StateBuilder() =
 
         member this.Bind(f, x) = f >>= x
@@ -157,8 +144,6 @@ module internal Eval
     let rec boolEval2 b = failwith "Not implemented"
 
     let stmntEval2 stm = failwith "Not implemented"
-
-(* Part 4 *)
 
     type word = (char * int) list
     type squareFun = word -> int -> int -> Result<int, Error>
