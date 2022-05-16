@@ -29,9 +29,10 @@ module internal State =
         piecesInPlay: Map<coord, uint32> //Pair of coordinate to a tileId
         timeout : option<uint32>
         playerForfeited: Set<uint32>
+        changeHandBool: Boolean
     }
 
-    let mkState b d pn h pa pt tout = {board = b; dict = d;  playerNumber = pn; hand = h; playerAmount = pa; playerTurn = pt; piecesInPlay = Map.empty; timeout = tout; playerForfeited = Set.empty;}
+    let mkState b d pn h pa pt tout = {board = b; dict = d;  playerNumber = pn; hand = h; playerAmount = pa; playerTurn = pt; piecesInPlay = Map.empty; timeout = tout; playerForfeited = Set.empty; changeHandBool = false;}
 
     let board st         = st.board
     let dict st          = st.dict
@@ -215,6 +216,15 @@ module Scrabble =
     
     let filterMove (st : State.state) (move : list<coord * (uint32 * (char * int))>) =
        List.filter (fun (coord, _) -> not (isSquareOccupied coord st.piecesInPlay)) move
+    
+    let changeAllTilesInHand (st : State.state) (tiles : list<uint32 * uint32>) =
+        { st with
+            hand = List.fold (fun acc (x, k) -> MultiSet.add x k acc) MultiSet.empty tiles;
+            changeHandBool = false; }
+
+    let updateBoolAfterPass (st : State.state) =
+        { st with
+            changeHandBool = true;}
       
     let playGame cstream (pieces: Map<uint32, tile>) (st : State.state) =
         let updatePiecesInPlay (st : State.state) (move : list<coord * (uint32 * (char * int))>) =
@@ -237,14 +247,13 @@ module Scrabble =
                         send cstream (SMPlay move)
                     else
                         debugPrint (sprintf "Player %d -> Server:\npassed\n" (State.playerNumber st)) // keep the debug lines. They are useful.
-                        send cstream (SMPass)
+                        if st.changeHandBool then
+                            send cstream (SMChange (MultiSet.toList st.hand))
+                        else 
+                            send cstream (SMPass)       
                 | false -> 
                     debugPrint (sprintf "Waiting for my turn")
             
-
-            //send cstream (SMForfeit) "not implemented" don not do this ever right?
-            //send cstream (SMChange (uint32 list)) "not implemented" maybe do this sometimes?
-
             let msg = recv cstream
 
             match msg with
@@ -266,8 +275,17 @@ module Scrabble =
                 debugPrint (sprintf "Player %d <- Server:\n%A\nfailed\n" (pid) move)
                 let st' = nextTurn st 
                 aux st'
-            | RCM (CMPassed (pid)) | RCM (CMTimeout (pid)) ->
+            | RCM (CMPassed (pid)) ->
                 (* Player passed. Update your state *)
+                debugPrint (sprintf "Player %d <- Server:\npassed\n" (pid))
+                let st' = nextTurn st
+                if pid = st'.playerNumber then
+                    let st'' = updateBoolAfterPass st'
+                    aux st''
+                else
+                    aux st'
+            | RCM (CMTimeout (pid)) ->
+                (* Player timed out. Update your state *)
                 debugPrint (sprintf "Player %d <- Server:\npassed\n" (pid))
                 let st' = nextTurn st
                 aux st'
@@ -285,7 +303,7 @@ module Scrabble =
             | RCM (CMChangeSuccess (tiles)) ->
                 (* Successful changed tiles by you. Update your state *)
                 debugPrint (sprintf "Player %d <- Server:\n\nChange success\n" (State.playerNumber st))
-                let st' = st
+                let st' = changeAllTilesInHand st tiles
                 let st'' = nextTurn st'
                 aux st''
             | RCM (CMGameOver _) -> () //Loop ends i.e. Game ends.
