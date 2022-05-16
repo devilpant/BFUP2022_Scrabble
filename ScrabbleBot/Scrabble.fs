@@ -11,13 +11,13 @@ open System.IO
 open ScrabbleUtil.DebugPrint
 open StateMonad
 
-module Print =
+module internal Print =
 
     let printHand pieces hand =
         hand |>
         MultiSet.fold (fun _ x i -> forcePrint (sprintf "%d -> (%A, %d)\n" x (Map.find x pieces) i)) ()
 
-module State = 
+module internal State = 
     
     type state = {
         board         : Parser.board
